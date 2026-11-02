@@ -7,100 +7,67 @@ namespace TDI
 {
     public class Gamemap
     {
-        int dificuldade, gold, vida, tempo;
-        List<Entidades.Tropa> tropas;
-        List<Vector2> posicoes;
-        public Gamemap()
-        {
-            // Constructor logic here]
-            tropas = new List<Entidades.Tropa>();
-            posicoes = new List<Vector2>();
+        List<Entidades.Tropa> tropas = new List<Entidades.Tropa>();
+        List<Vector2> posicoes = new List<Vector2>();
+        KeyboardState tecladoAnterior;
 
-            gerarRota();
+        public Gamemap(Viewport viewport)
+        {
+            GerarRota(viewport);
         }
 
-        public int Dificuldade
+        private void GerarRota(Viewport viewport)
         {
-            get { return dificuldade; }
-            set { dificuldade = value; }
+            Vector2 containerSize = new Vector2(viewport.Width * 0.8f, viewport.Height*0.8f);
+            Vector2 containerPosition = new Vector2(viewport.Width * 0.1f, viewport.Height * 0.1f);
+
+            // Gera os waypoints ao redor do container
+            posicoes.Add(containerPosition);
+            posicoes.Add(containerPosition + new Vector2(containerSize.X, 0));
+            posicoes.Add(containerPosition + new Vector2(containerSize.X, containerSize.Y));
+            posicoes.Add(containerPosition + new Vector2(0, containerSize.Y));
+            posicoes.Add(containerPosition); // volta para o início
         }
 
-        public int Gold
+        public void Update(GameTime gameTime)
         {
-            get { return gold; }
-            set { gold = value; }
-        }
+            var teclado = Keyboard.GetState();
 
-        public int Vida
-        {
-            get { return vida; }
-            set { vida = value; }
-        }
+            // envia uma tropa por aperto da tecla 1
+            if (teclado.IsKeyDown(Keys.D1) && tecladoAnterior.IsKeyUp(Keys.D1))
+                tropas.Add(new Entidades.Tropa("Soldado", 10, 5, 2, 100f, posicoes[0]));
 
-        public int Tempo
-        {
-            get { return tempo; }
-            set { tempo = value; }
-        }
+            tecladoAnterior = teclado;
 
-        private void GerarRota()
-        {
-            posicoes.Add(new Vector2(0, 0));
-            posicoes.Add(new Vector2(300, 0));
-            posicoes.Add(new Vector2(300, 200));
-            posicoes.Add(new Vector2(200, 200));
-            posicoes.Add(new Vector2(200, 400));
-            posicoes.Add(new Vector2(300, 400));
-            posicoes.Add(new Vector2(300, 300));
-            posicoes.Add(new Vector2(0, 300));
-        }
+            float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-        public void update(GameTime gameTime)
-        {
-            if(input.IsKeyDown(Keys.num1))
+            foreach (var tropa in tropas)
             {
-                tropas.Add(new Entidades.Tropa("Tropa1", 10, 5, 2, 1.0f, posicoes[0]));
-            }
+                // chegou no último waypoint: para
+                if (tropa.pointAtual >= posicoes.Count - 1)
+                    continue;
 
-            if(tropas.Count > 0)
-            {
-                foreach(var tropa in tropas)
+                Vector2 destino = posicoes[tropa.pointAtual + 1];
+                Vector2 falta = destino - tropa.Posicao;
+                float passo = tropa.Velocidade * dt;
+
+                if (falta.Length() <= passo)
                 {
-                    if(tropa.posicao.X != posicoes[tropa.pointAtual + 1].X)
-                    {
-                        if(tropa.posicao.X < posicoes[tropa.pointAtual + 1].X)
-                        {
-                            tropa.posicao.X += tropa.Velocidade;
-                        }
-                        else
-                        {
-                            tropa.posicao.X -= tropa.Velocidade;
-                        }
-                        
-                    }
-                    else if(tropa.posicao.Y != posicoes[tropa.pointAtual + 1].Y)
-                    {
-                        if(tropa.posicao.Y < posicoes[tropa.pointAtual + 1].Y)
-                        {
-                            tropa.posicao.Y += tropa.Velocidade;
-                        }
-                        else
-                        {
-                            tropa.posicao.Y -= tropa.Velocidade;
-                        }
-                        
-                    }
-                    else
-                    {
-                        tropa.pointAtual++;
-                    }
+                    tropa.Posicao = destino;   // encaixa no waypoint
+                    tropa.pointAtual++;
+                }
+                else
+                {
+                    falta.Normalize();
+                    tropa.Posicao += falta * passo;
                 }
             }
         }
 
-        public void draw(SpriteBatch spriteBatch)
+        public void Draw(SpriteBatch spriteBatch, Texture2D pixel)
         {
-            // Drawing logic for the game map
+            foreach (var tropa in tropas)
+                spriteBatch.Draw(pixel, new Rectangle((int)tropa.Posicao.X, (int)tropa.Posicao.Y, 16, 16), Color.Red);
         }
     }
 }
